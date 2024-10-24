@@ -3,6 +3,7 @@ import codecs
 import re
 from pathlib import Path
 
+import torch
 import numpy as np
 import soundfile as sf
 import tomli
@@ -88,8 +89,8 @@ model = args.model if args.model else config["model"]
 ckpt_file = args.ckpt_file if args.ckpt_file else ""
 vocab_file = args.vocab_file if args.vocab_file else ""
 remove_silence = args.remove_silence if args.remove_silence else config["remove_silence"]
-wave_path = Path(output_dir) / "out.wav"
-spectrogram_path = Path(output_dir) / "out.png"
+wave_path = Path(output_dir) / "rep_inference.wav"
+spectrogram_path = Path(output_dir) / "rep_inference.png"
 vocos_local_path = "../checkpoints/charactr/vocos-mel-24khz"
 
 vocos = load_vocoder(is_local=args.load_vocoder_from_local, local_path=vocos_local_path)
@@ -154,17 +155,28 @@ def main_process(ref_audio, ref_text, text_gen, model_obj, remove_silence):
         ref_audio = voices[voice]["ref_audio"]
         ref_text = voices[voice]["ref_text"]
         print(f"Voice: {voice}")
-        audio, final_sample_rate, spectragram = infer_process(ref_audio, ref_text, gen_text, model_obj)
-        generated_audio_segments.append(audio)
+        audio, final_sample_rate, spectrogram = infer_process(ref_audio, ref_text, gen_text, model_obj)
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(10, 5))
+        plt.imshow(spectrogram, cmap='inferno', aspect='auto', origin='lower')
+        plt.colorbar()
+        plt.title('Spectrogram')
+        plt.xlabel('Time')
+        plt.ylabel('Frequency')
+        plt.savefig(spectrogram_path)
+        plt.close()
+        # torch.save(spectrogram, str(spectrogram_path).replace('.png', '.pt'))
+        np.save(str(spectrogram_path).replace('.png', '.npy'), spectrogram)
+        # generated_audio_segments.append(audio)
 
-    if generated_audio_segments:
-        final_wave = np.concatenate(generated_audio_segments)
-        with open(wave_path, "wb") as f:
-            sf.write(f.name, final_wave, final_sample_rate)
-            # Remove silence
-            if remove_silence:
-                remove_silence_for_generated_wav(f.name)
-            print(f.name)
+    # if generated_audio_segments:
+    #     final_wave = np.concatenate(generated_audio_segments)
+    #     with open(wave_path, "wb") as f:
+    #         sf.write(f.name, final_wave, final_sample_rate)
+    #         # Remove silence
+    #         if remove_silence:
+    #             remove_silence_for_generated_wav(f.name)
+    #         print(f.name)
 
 
 main_process(ref_audio, ref_text, gen_text, ema_model, remove_silence)

@@ -27,9 +27,9 @@ vocos = Vocos.from_pretrained("charactr/vocos-mel-24khz")
 
 # -----------------------------------------
 
-target_sample_rate = 24000
-n_mel_channels = 100
-hop_length = 256
+target_sample_rate = 16000
+n_mel_channels = 128
+hop_length = 160
 target_rms = 0.1
 cross_fade_duration = 0.15
 ode_method = "euler"
@@ -291,14 +291,16 @@ def infer_batch_process(
         generated = generated.to(torch.float32)
         generated = generated[:, ref_audio_len:, :]
         generated_mel_spec = generated.permute(0, 2, 1)
-        generated_wave = vocos.decode(generated_mel_spec.cpu())
-        if rms < target_rms:
-            generated_wave = generated_wave * rms / target_rms
+        # NOTE: uncomment for vocoding
+        # generated_wave = vocos.decode(generated_mel_spec.cpu())
+        # if rms < target_rms:
+        #     generated_wave = generated_wave * rms / target_rms
 
-        # wav -> numpy
-        generated_wave = generated_wave.squeeze().cpu().numpy()
+        # # wav -> numpy
+        # generated_wave = generated_wave.squeeze().cpu().numpy()
 
-        generated_waves.append(generated_wave)
+        # generated_waves.append(generated_wave)
+        generated_waves.append(torch.zeros(160000))
         spectrograms.append(generated_mel_spec[0].cpu().numpy())
 
     # Combine all generated waves with cross-fading
