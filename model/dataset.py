@@ -26,7 +26,9 @@ class HFDataset(Dataset):
         self.target_sample_rate = target_sample_rate
         self.hop_length = hop_length
         self.mel_spectrogram = MelSpec(
-            target_sample_rate=target_sample_rate, n_mel_channels=n_mel_channels, hop_length=hop_length
+            target_sample_rate=target_sample_rate,
+            n_mel_channels=n_mel_channels,
+            hop_length=hop_length,
         )
 
     def get_frame_len(self, index):
@@ -53,7 +55,9 @@ class HFDataset(Dataset):
         audio_tensor = torch.from_numpy(audio).float()
 
         if sample_rate != self.target_sample_rate:
-            resampler = torchaudio.transforms.Resample(sample_rate, self.target_sample_rate)
+            resampler = torchaudio.transforms.Resample(
+                sample_rate, self.target_sample_rate
+            )
             audio_tensor = resampler(audio_tensor)
 
         audio_tensor = audio_tensor.unsqueeze(0)  # 't -> 1 t')
@@ -125,7 +129,9 @@ class CustomDataset(Dataset):
                 return self.__getitem__((index + 1) % len(self.data))
 
             if source_sample_rate != self.target_sample_rate:
-                resampler = torchaudio.transforms.Resample(source_sample_rate, self.target_sample_rate)
+                resampler = torchaudio.transforms.Resample(
+                    source_sample_rate, self.target_sample_rate
+                )
                 audio = resampler(audio)
 
             mel_spec = self.mel_spectrogram(audio)
@@ -149,7 +155,12 @@ class DynamicBatchSampler(Sampler[list[int]]):
     """
 
     def __init__(
-        self, sampler: Sampler[int], frames_threshold: int, max_samples=0, random_seed=None, drop_last: bool = False
+        self,
+        sampler: Sampler[int],
+        frames_threshold: int,
+        max_samples=0,
+        random_seed=None,
+        drop_last: bool = False,
     ):
         self.sampler = sampler
         self.frames_threshold = frames_threshold
@@ -159,7 +170,8 @@ class DynamicBatchSampler(Sampler[list[int]]):
         data_source = self.sampler.data_source
 
         for idx in tqdm(
-            self.sampler, desc="Sorting with sampler... if slow, check whether dataset is provided with duration"
+            self.sampler,
+            desc="Sorting with sampler... if slow, check whether dataset is provided with duration",
         ):
             indices.append((idx, data_source.get_frame_len(idx)))
         indices.sort(key=lambda elem: elem[1])
@@ -167,9 +179,12 @@ class DynamicBatchSampler(Sampler[list[int]]):
         batch = []
         batch_frames = 0
         for idx, frame_len in tqdm(
-            indices, desc=f"Creating dynamic batches with {frames_threshold} audio frames per gpu"
+            indices,
+            desc=f"Creating dynamic batches with {frames_threshold} audio frames per gpu",
         ):
-            if batch_frames + frame_len <= self.frames_threshold and (max_samples == 0 or len(batch) < max_samples):
+            if batch_frames + frame_len <= self.frames_threshold and (
+                max_samples == 0 or len(batch) < max_samples
+            ):
                 batch.append(idx)
                 batch_frames += frame_len
             else:
@@ -225,12 +240,18 @@ def load_dataset(
             try:
                 train_dataset = load_from_disk(f"data/{dataset_name}_{tokenizer}/raw")
             except:  # noqa: E722
-                train_dataset = Dataset_.from_file(f"data/{dataset_name}_{tokenizer}/raw.arrow")
+                train_dataset = Dataset_.from_file(
+                    f"data/{dataset_name}_{tokenizer}/raw.arrow"
+                )
             preprocessed_mel = False
         elif audio_type == "mel":
-            train_dataset = Dataset_.from_file(f"data/{dataset_name}_{tokenizer}/mel.arrow")
+            train_dataset = Dataset_.from_file(
+                f"data/{dataset_name}_{tokenizer}/mel.arrow"
+            )
             preprocessed_mel = True
-        with open(f"data/{dataset_name}_{tokenizer}/duration.json", "r", encoding="utf-8") as f:
+        with open(
+            f"data/{dataset_name}_{tokenizer}/duration.json", "r", encoding="utf-8"
+        ) as f:
             data_dict = json.load(f)
         durations = data_dict["duration"]
         train_dataset = CustomDataset(
@@ -251,7 +272,10 @@ def load_dataset(
             data_dict = json.load(f)
         durations = data_dict["duration"]
         train_dataset = CustomDataset(
-            train_dataset, durations=durations, preprocessed_mel=preprocessed_mel, **mel_spec_kwargs
+            train_dataset,
+            durations=durations,
+            preprocessed_mel=preprocessed_mel,
+            **mel_spec_kwargs,
         )
 
     elif dataset_type == "HFDataset":
@@ -292,3 +316,13 @@ def collate_fn(batch):
         text=text,
         text_lengths=text_lengths,
     )
+
+
+if __name__ == "__main__":
+    ds = load_dataset(
+        "data/WenetSpeech4TTS_Premium",
+        tokenizer="pinyin",
+        dataset_type="CustomDataset",
+        audio_type="raw",
+    )
+    ds0 = ds[1]
