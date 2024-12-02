@@ -47,7 +47,8 @@ class Trainer:
         ema_kwargs: dict = dict(),
         bnb_optimizer: bool = False,
     ):
-        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        # ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        ddp_kwargs = DistributedDataParallelKwargs()
 
         logger = "wandb" if wandb.api.api_key else None
         print(f"Using logger: {logger}")

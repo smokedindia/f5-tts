@@ -170,7 +170,7 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, show_info=print, device=
             generate_kwargs={"task": "transcribe"},
             return_timestamps=False,
         )["text"].strip()
-        show_info("Finished transcription")
+        show_info(f"Finished transcription: text = {ref_text}")
     else:
         show_info("Using custom reference text...")
 
@@ -192,6 +192,8 @@ def infer_process(
     ref_text,
     gen_text,
     model_obj,
+    lang_ref="en",
+    lang_gen="en",
     show_info=print,
     progress=tqdm,
     target_rms=target_rms,
@@ -216,6 +218,8 @@ def infer_process(
         ref_text,
         gen_text_batches,
         model_obj,
+        lang_ref=lang_ref,
+        lang_gen=lang_gen,
         progress=progress,
         target_rms=target_rms,
         cross_fade_duration=cross_fade_duration,
@@ -236,6 +240,8 @@ def infer_batch_process(
     ref_text,
     gen_text_batches,
     model_obj,
+    lang_ref="en",
+    lang_gen="en",
     progress=tqdm,
     target_rms=0.1,
     cross_fade_duration=0.15,
@@ -265,8 +271,21 @@ def infer_batch_process(
         ref_text = ref_text + " "
     for i, gen_text in enumerate(progress.tqdm(gen_text_batches)):
         # Prepare the text
-        text_list = [ref_text + gen_text]
-        final_text_list = convert_char_to_pinyin(text_list)
+        # text_list = [ref_text + gen_text]
+        # final_text_list = convert_char_to_pinyin(text_list, lang=lang)
+        # check if ref_text contains alphabet
+        alphabets = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        if any(char in alphabets for char in ref_text):
+            if lang_ref != "en":
+                print("ref_text contains alphabet, using English")
+            lang_ref = "en"
+        if any(char in alphabets for char in gen_text):
+            if lang_gen != "en":
+                print("gen_text contains alphabet, using English")
+            lang_gen = "en"
+        ref_text_char = convert_char_to_pinyin([ref_text], lang=lang_ref)
+        gen_text_char = convert_char_to_pinyin([gen_text], lang=lang_gen)
+        final_text_list = [ref_text_char[0] + gen_text_char[0]]
 
         ref_audio_len = audio.shape[-1] // hop_length
         if fix_duration is not None:
@@ -292,6 +311,7 @@ def infer_batch_process(
         generated = generated[:, ref_audio_len:, :]
         generated_mel_spec = generated.permute(0, 2, 1)
         # NOTE: uncomment for vocoding
+        # import pdb; pdb.set_trace()
         # generated_wave = vocos.decode(generated_mel_spec.cpu())
         # if rms < target_rms:
         #     generated_wave = generated_wave * rms / target_rms
@@ -299,10 +319,11 @@ def infer_batch_process(
         # # wav -> numpy
         # generated_wave = generated_wave.squeeze().cpu().numpy()
 
-        # generated_waves.append(generated_wave)
-        generated_waves.append(torch.zeros(160000))
+        # # generated_waves.append(generated_wave)
+        # generated_waves.append(torch.zeros(160000))
         spectrograms.append(generated_mel_spec[0].cpu().numpy())
 
+    return None, target_sample_rate, spectrograms
     # Combine all generated waves with cross-fading
     if cross_fade_duration <= 0:
         # Simply concatenate

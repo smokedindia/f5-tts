@@ -5,33 +5,39 @@ from model.dataset import load_dataset
 
 # -------------------------- Dataset Settings --------------------------- #
 
-target_sample_rate = 24000
-n_mel_channels = 100
-hop_length = 256
+target_sample_rate = 16000
+n_mel_channels = 128
+hop_length = 160
 
-tokenizer = "pinyin"  # 'pinyin', 'char', or 'custom'
-tokenizer_path = None  # if tokenizer = 'custom', define the path to the tokenizer you want to use (should be vocab.txt)
-dataset_name = "Emilia_ZH_EN"
+tokenizer = "char"  # 'pinyin', 'char', or 'custom'
+# tokenizer_path = 'WenetSpeech4TTS_Premium_pinyin/vocab.txt'  # if tokenizer = 'custom', define the path to the tokenizer you want to use (should be vocab.txt)
+# tokenizer_path = 'aihub_dialects_heavy/vocab.txt'
+tokenizer_path = "data/aihub_dialects.txt" # DEPRECATED
+# dataset_name = "Emilia_ZH_EN"
+# dataset_name = "WenetSpeech4TTS_Premium"
+dataset_name = 'aihub_dialects_heavy'
 
 # -------------------------- Training Settings -------------------------- #
 
-exp_name = "F5TTS_Base"  # F5TTS_Base | E2TTS_Base
+# exp_name = "F5TTS_Base_wenet"  # F5TTS_Base | E2TTS_Base
+exp_name = "F5TTS_Base_aihub_heavy"
 
 learning_rate = 7.5e-5
 
-batch_size_per_gpu = 38400  # 8 GPUs, 8 * 38400 = 307200
+batch_size_per_gpu = 9600  # 8 GPUs, 8 * 19200 = 153600
 batch_size_type = "frame"  # "frame" or "sample"
-max_samples = 64  # max sequences per batch if use frame-wise batch_size. we set 32 for small models, 64 for base models
+# max_samples = 16  # max sequences per batch if use frame-wise batch_size. we set 32 for small models, 64 for base models
+max_samples = 6
 grad_accumulation_steps = 1  # note: updates = steps / grad_accumulation_steps
 max_grad_norm = 1.0
 
-epochs = 11  # use linear decay, thus epochs control the slope
+epochs = 100  # use linear decay, thus epochs control the slope
 num_warmup_updates = 20000  # warmup steps
 save_per_updates = 50000  # save checkpoint per steps
 last_per_steps = 5000  # save last checkpoint per steps
 
 # model params
-if exp_name == "F5TTS_Base":
+if exp_name == "F5TTS_Base_aihub_heavy":
     wandb_resume_id = None
     model_cls = DiT
     model_cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
@@ -75,7 +81,7 @@ def main():
         max_samples=max_samples,
         grad_accumulation_steps=grad_accumulation_steps,
         max_grad_norm=max_grad_norm,
-        wandb_project="CFM-TTS",
+        wandb_project="AIHUB-TTS",
         wandb_run_name=exp_name,
         wandb_resume_id=wandb_resume_id,
         last_per_steps=last_per_steps,

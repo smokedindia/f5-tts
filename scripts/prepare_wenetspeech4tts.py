@@ -33,7 +33,8 @@ def deal_with_sub_path_files(dataset_path, sub_path):
 
         audio_paths.append(audio_path)
 
-        if tokenizer == "pinyin":
+        # if tokenizer == "pinyin":
+        if text_dir.find("Premium") != -1:
             texts.extend(convert_char_to_pinyin([text], polyphone=polyphone))
         elif tokenizer == "char":
             texts.append(text)
@@ -49,13 +50,21 @@ def main():
 
     audio_path_list, text_list, duration_list = [], [], []
 
+    print(f"Using {max_workers} workers")
     executor = ProcessPoolExecutor(max_workers=max_workers)
+    # executor = ProcessPoolExecutor()
     futures = []
     for dataset_path in dataset_paths:
         sub_items = os.listdir(dataset_path)
-        sub_paths = [item for item in sub_items if os.path.isdir(os.path.join(dataset_path, item))]
+        sub_paths = [
+            item
+            for item in sub_items
+            if os.path.isdir(os.path.join(dataset_path, item))
+        ]
         for sub_path in sub_paths:
-            futures.append(executor.submit(deal_with_sub_path_files, dataset_path, sub_path))
+            futures.append(
+                executor.submit(deal_with_sub_path_files, dataset_path, sub_path)
+            )
     for future in tqdm(futures, total=len(futures)):
         audio_paths, texts, durations = future.result()
         audio_path_list.extend(audio_paths)
@@ -67,10 +76,16 @@ def main():
         os.makedirs("data")
 
     print(f"\nSaving to data/{dataset_name}_{tokenizer} ...")
-    dataset = Dataset.from_dict({"audio_path": audio_path_list, "text": text_list, "duration": duration_list})
-    dataset.save_to_disk(f"data/{dataset_name}_{tokenizer}/raw", max_shard_size="2GB")  # arrow format
+    dataset = Dataset.from_dict(
+        {"audio_path": audio_path_list, "text": text_list, "duration": duration_list}
+    )
+    dataset.save_to_disk(
+        f"data/{dataset_name}_{tokenizer}/raw", max_shard_size="2GB"
+    )  # arrow format
 
-    with open(f"data/{dataset_name}_{tokenizer}/duration.json", "w", encoding="utf-8") as f:
+    with open(
+        f"data/{dataset_name}_{tokenizer}/duration.json", "w", encoding="utf-8"
+    ) as f:
         json.dump(
             {"duration": duration_list}, f, ensure_ascii=False
         )  # dup a json separately saving duration in case for DynamicBatchSampler ease
@@ -82,7 +97,9 @@ def main():
 
     # add alphabets and symbols (optional, if plan to ft on de/fr etc.)
     if tokenizer == "pinyin":
-        text_vocab_set.update([chr(i) for i in range(32, 127)] + [chr(i) for i in range(192, 256)])
+        text_vocab_set.update(
+            [chr(i) for i in range(32, 127)] + [chr(i) for i in range(192, 256)]
+        )
 
     with open(f"data/{dataset_name}_{tokenizer}/vocab.txt", "w") as f:
         for vocab in sorted(text_vocab_set):
@@ -98,11 +115,15 @@ if __name__ == "__main__":
     polyphone = True
     dataset_choice = 1  # 1: Premium, 2: Standard, 3: Basic
 
-    dataset_name = ["WenetSpeech4TTS_Premium", "WenetSpeech4TTS_Standard", "WenetSpeech4TTS_Basic"][dataset_choice - 1]
+    dataset_name = [
+        "WenetSpeech4TTS_Premium",
+        # "WenetSpeech4TTS_Standard",
+        # "WenetSpeech4TTS_Basic",
+    ][dataset_choice - 1]
     dataset_paths = [
-        "<SOME_PATH>/WenetSpeech4TTS/Basic",
-        "<SOME_PATH>/WenetSpeech4TTS/Standard",
-        "<SOME_PATH>/WenetSpeech4TTS/Premium",
+        # "/mnt/lynx4/datasets/aihub_dialects/WenetSpeech4TTS/Basic",
+        # "/mnt/lynx4/datasets/aihub_dialects/WenetSpeech4TTS/Standard",
+        "/mnt/lynx4/datasets/aihub_dialects/WenetSpeech4TTS",
     ][-dataset_choice:]
     print(f"\nChoose Dataset: {dataset_name}\n")
 

@@ -1,6 +1,12 @@
 import json
 import random
 from tqdm import tqdm
+if __name__ == "__main__":
+    import sys
+    import os
+
+    # Add the parent directory to the Python path
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 import torch.nn.functional as F
@@ -112,30 +118,38 @@ class CustomDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        row = self.data[index]
-        audio_path = row["audio_path"]
-        text = row["text"]
-        duration = row["duration"]
+        try:
+            row = self.data[index]
+            audio_path = row["audio_path"].replace('lynx4', 'lynx2')
+            text = row["text"]
+            duration = row["duration"]
 
-        if self.preprocessed_mel:
-            mel_spec = torch.tensor(row["mel_spec"])
+            if self.preprocessed_mel:
+                # mel_spec = torch.tensor(row["mel_spec"])
+                try:
+                    mel_spec = torch.load(audio_path.replace('.wav', '.pt'), weights_only=True)
+                except:
+                    return self.__getitem__((index + 1) % len(self.data))
 
-        else:
-            audio, source_sample_rate = torchaudio.load(audio_path)
-            if audio.shape[0] > 1:
-                audio = torch.mean(audio, dim=0, keepdim=True)
+            else:
+                raise ValueError("Preprocessed mel is not supported in this version.")
+                audio, source_sample_rate = torchaudio.load(audio_path)
+                if audio.shape[0] > 1:
+                    audio = torch.mean(audio, dim=0, keepdim=True)
 
-            if duration > 30 or duration < 0.3:
-                return self.__getitem__((index + 1) % len(self.data))
+                if duration > 30 or duration < 0.3:
+                    return self.__getitem__((index + 1) % len(self.data))
 
-            if source_sample_rate != self.target_sample_rate:
-                resampler = torchaudio.transforms.Resample(
-                    source_sample_rate, self.target_sample_rate
-                )
-                audio = resampler(audio)
+                if source_sample_rate != self.target_sample_rate:
+                    resampler = torchaudio.transforms.Resample(
+                        source_sample_rate, self.target_sample_rate
+                    )
+                    audio = resampler(audio)
 
-            mel_spec = self.mel_spectrogram(audio)
-            mel_spec = mel_spec.squeeze(0)  # '1 d t -> d t')
+                mel_spec = self.mel_spectrogram(audio)
+                mel_spec = mel_spec.squeeze(0)  # '1 d t -> d t')
+        except Exception as e:
+            return self.__getitem__((index + 1) % len(self.data))
 
         return dict(
             mel_spec=mel_spec,
@@ -240,10 +254,9 @@ def load_dataset(
             try:
                 train_dataset = load_from_disk(f"data/{dataset_name}_{tokenizer}/raw")
             except:  # noqa: E722
-                train_dataset = Dataset_.from_file(
-                    f"data/{dataset_name}_{tokenizer}/raw.arrow"
-                )
-            preprocessed_mel = False
+                train_dataset = Dataset_.from_file(f"data/{dataset_name}_{tokenizer}/raw.arrow")
+            # preprocessed_mel = False
+            preprocessed_mel = True
         elif audio_type == "mel":
             train_dataset = Dataset_.from_file(
                 f"data/{dataset_name}_{tokenizer}/mel.arrow"
@@ -320,9 +333,16 @@ def collate_fn(batch):
 
 if __name__ == "__main__":
     ds = load_dataset(
-        "data/WenetSpeech4TTS_Premium",
-        tokenizer="pinyin",
+        "aihub_dialects",
+        tokenizer="char",
         dataset_type="CustomDataset",
         audio_type="raw",
     )
+    # ds2 = load_dataset(
+    #     "WenetSpeech4TTS_Premium",
+    #     tokenizer="pinyin",
+    #     dataset_type="CustomDataset",
+    #     audio_type="raw",
+    # )
+    import pdb; pdb.set_trace()
     ds0 = ds[1]
